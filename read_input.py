@@ -55,6 +55,7 @@ months = {
     "Dec": "12",
 }
 
+# PUT USER NAMES IN DEFAULT
 USER_DICT = {"김대엽": "A", "(Unknown)": "B", "꩓𝑱𝒊𝒏𝒏𝒚꩓": "B"}
 
 
@@ -76,24 +77,25 @@ def read_file():
     create_idx_table(conn)
     for txt_file in txt_files:
         with open(txt_file) as lines:
-            is_msg_appending = False
+            is_message_appending = False
             appending_msg = ""
-            # sender,
             for line in lines:
                 if is_msg_format(line):
-
+                    if is_message_appending:
+                        pass
                     # if not is_msg_appending :
-                    print("MESSGAE FORMAT")
-                    print(line)
-                    t, s, m = get_time_sender_message(line)
-                    # t, s, r, m = get_time_sender_reciver_message()
-                    # is_msg_appending = False
-                    # # 1. 일단 읽어
-                    # # 2. 다음 꺼(공백이면 패스)가 똑같이 메세지 포맷이거나 날짜 포맷이면 읽은 것들 삽입
-                    # # 3. 다음 꺼(공백이면 패스)가 메세지 포맷이 아니거나 읽은 메세지에서 어펜드한다
-                    # print("aaaaaa")
-                    # print(line)
-                    pass
+                    else:
+                        print("MESSGAE FORMAT")
+                        print(line)
+                        tn, t, s, m = get_tablename_time_sender_message(line)
+                        is_message_appending = True
+                        # t, s, r, m = get_time_sender_reciver_message()
+                        # is_msg_appending = False
+                        # # 1. 일단 읽어
+                        # # 2. 다음 꺼(공백이면 패스)가 똑같이 메세지 포맷이거나 날짜 포맷이면 읽은 것들 삽입
+                        # # 3. 다음 꺼(공백이면 패스)가 메세지 포맷이 아니거나 읽은 메세지에서 어펜드한다
+                        # print("aaaaaa")
+                        # print(line)
                 elif is_date_format(line):
                     y, m = get_year_month(line)
                     create_monthly_table(conn, y, m)
@@ -132,19 +134,19 @@ def is_msg_format(line):
         return False
 
 
-def get_time_sender_message(line):
+def get_tablename_time_sender_message(line):
     tokens = [token.strip(",") for token in line.split(",", 2)]
     month_day = tokens[0].split()
     year_time = tokens[1].split()
     hour_minute = year_time[1].split(":")
     sender_message = [token.strip() for token in tokens[2].split(":")]
-    print(sender)
     return (
+        year_time[0] + month_day[0],
         (
             "%s-%s-%s %s:%s:00"
             % (year_time[0], month_day[0], month_day[1], hour_minute[0], hour_minute[1])
         ),
-        sender_message[0],
+        USER_DICT(sender_message[0]),
         sender_message[1],
     )
 
