@@ -98,7 +98,7 @@ def read_file():
                         # print(line)
                 elif is_date_format(line):
                     y, m = get_year_month(line)
-                    create_monthly_table(conn, y, m)
+                    create_monthly_chat_table(conn, y, m)
                 else:
                     pass
 
@@ -224,7 +224,7 @@ def create_idx_table(conn):
     conn.commit()
 
 
-def create_monthly_table(conn, year, month):
+def create_monthly_chat_table(conn, year, month):
     table_name = year + month + ""
     sql = (
         """CREATE TABLE IF NOT EXISTS `%s` (
@@ -238,7 +238,6 @@ def create_monthly_table(conn, year, month):
     )
     conn.cursor().execute(sql)
     conn.commit()
-    # print("CREATED")
     insert_into_index_table(conn, year, month)
 
 
@@ -252,7 +251,7 @@ def insert_into_index_table(conn, year, month):
     conn.commit()
 
 
-def insert_into_chat_table(conn, table_name, datetime, sender, message):
+def insert_into_monthly_chat_table(conn, table_name, datetime, sender, message):
     sql = "INSERT IGNORE INTO %s(date, sender, message) VALUES (%s, %s, %s);" % (
         table_name,
         datetime,
