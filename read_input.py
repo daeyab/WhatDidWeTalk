@@ -10,6 +10,10 @@ CHARSET = "utf8"
 TXT_FOLDER_PATH = "test"
 MIN_DATE = 1
 MAX_DATE = 31
+MIN_HOUR = 0
+MAX_HOUR = 23
+MIN_MINUTE = 0
+MAX_MINUTE = 59
 MIN_YEAR = 2000
 MAX_YEAR = 3000
 daynames = [
@@ -70,11 +74,15 @@ def read_file():
     create_idx_table(conn)
     for txt_file in txt_files:
         with open(txt_file) as lines:
-            is_msg_appending = True
+            is_msg_appending = False
+            appending_msg = ""
             # sender,
             for line in lines:
                 if is_msg_format(line):
 
+                    # if not is_msg_appending :
+                    print("MESSGAE FORMAT")
+                    print(line)
                     # is_msg_appending = False
                     # # 1. 일단 읽어
                     # # 2. 다음 꺼(공백이면 패스)가 똑같이 메세지 포맷이거나 날짜 포맷이면 읽은 것들 삽입
@@ -103,11 +111,27 @@ def read_file():
 def is_msg_format(line):
     tokens = [token.strip(" ") for token in line.split(",", 2)]
     if len(tokens) == 3:
-        month_date = tokens[0].split()
-        year_time = tokens[1].split()
-        sender_message = tokens[2].split(":")
+        try:
+            month_day = tokens[0].split()
+            year_time = tokens[1].split()
+            hour_minute = year_time[1].split(":")
+            if (
+                month_day[0] in months_short
+                and is_day(month_day[1])
+                and is_year(year_time[0])
+                and is_hour(hour_minute[0])
+                and is_minute(hour_minute[1])
+            ):
+                return True
+        except:
+            return False
     else:
         return False
+
+
+def get_time_sender_reciver_message(line):
+    tokens = [token.strip(",") for token in line.split(" ")]
+    return tokens[3].strip("\n"), months[tokens[1]]
 
 
 def is_date_format(line):
@@ -138,6 +162,20 @@ def is_year(str):
 
 def is_day(str):
     if str.isdecimal() and int(str) >= MIN_DATE and int(str) <= MAX_DATE:
+        return True
+    else:
+        return False
+
+
+def is_hour(str):
+    if str.isdecimal() and int(str) >= MIN_HOUR and int(str) <= MAX_HOUR:
+        return True
+    else:
+        return False
+
+
+def is_minute(str):
+    if str.isdecimal() and int(str) >= MIN_MINUTE and int(str) <= MAX_MINUTE:
         return True
     else:
         return False
@@ -184,7 +222,7 @@ def create_monthly_table(conn, year, month):
     )
     conn.cursor().execute(sql)
     conn.commit()
-    print("CREATED")
+    # print("CREATED")
     insert_into_index_table(conn, year, month)
 
 
@@ -194,7 +232,7 @@ def insert_into_index_table(conn, year, month):
         year,
         month,
     )
-    print(sql)
+    # print(sql)
     conn.cursor().execute(sql)
     conn.commit()
 
