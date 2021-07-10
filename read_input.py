@@ -150,8 +150,6 @@ def get_tablename_time_sender_message(line):
         sender_message[1],
     )
 
-    # tokens[3].strip("\n"), months[tokens[1]]
-
 
 def is_date_format(line):
     tokens = [token.strip(",") for token in line.split(" ")]
@@ -250,7 +248,17 @@ def insert_into_index_table(conn, year, month):
         year,
         month,
     )
-    # print(sql)
+    conn.cursor().execute(sql)
+    conn.commit()
+
+
+def insert_into_chat_table(conn, table_name, datetime, sender, message):
+    sql = "INSERT IGNORE INTO %s(date, sender, message) VALUES (%s, %s, %s);" % (
+        table_name,
+        datetime,
+        sender,
+        message,
+    )
     conn.cursor().execute(sql)
     conn.commit()
 
