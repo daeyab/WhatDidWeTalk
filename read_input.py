@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import pymysql
 
-DATABASE_NAME = "testdbdb"
+DATABASE_NAME = "testdb"
 HOST_NAME = "localhost"
 USER_ID = "root"
 USER_PASSWORD = "rootPW1!"
@@ -55,6 +55,8 @@ months = {
     "Dec": "12",
 }
 
+USER_DICT = {"김대엽": "A", "(Unknown)": "B", "꩓𝑱𝒊𝒏𝒏𝒚꩓": "B"}
+
 
 def getFilePath():
     # get current path
@@ -83,11 +85,12 @@ def read_file():
                     # if not is_msg_appending :
                     print("MESSGAE FORMAT")
                     print(line)
+                    t, s, m = get_time_sender_message(line)
+                    # t, s, r, m = get_time_sender_reciver_message()
                     # is_msg_appending = False
                     # # 1. 일단 읽어
                     # # 2. 다음 꺼(공백이면 패스)가 똑같이 메세지 포맷이거나 날짜 포맷이면 읽은 것들 삽입
                     # # 3. 다음 꺼(공백이면 패스)가 메세지 포맷이 아니거나 읽은 메세지에서 어펜드한다
-
                     # print("aaaaaa")
                     # print(line)
                     pass
@@ -129,9 +132,23 @@ def is_msg_format(line):
         return False
 
 
-def get_time_sender_reciver_message(line):
-    tokens = [token.strip(",") for token in line.split(" ")]
-    return tokens[3].strip("\n"), months[tokens[1]]
+def get_time_sender_message(line):
+    tokens = [token.strip(",") for token in line.split(",", 2)]
+    month_day = tokens[0].split()
+    year_time = tokens[1].split()
+    hour_minute = year_time[1].split(":")
+    sender_message = [token.strip() for token in tokens[2].split(":")]
+    print(sender)
+    return (
+        (
+            "%s-%s-%s %s:%s:00"
+            % (year_time[0], month_day[0], month_day[1], hour_minute[0], hour_minute[1])
+        ),
+        sender_message[0],
+        sender_message[1],
+    )
+
+    # tokens[3].strip("\n"), months[tokens[1]]
 
 
 def is_date_format(line):
@@ -214,7 +231,6 @@ def create_monthly_table(conn, year, month):
   `message_id` int NOT NULL AUTO_INCREMENT,
   `date` datetime DEFAULT NULL,
   `sender` varchar(20) DEFAULT NULL,
-  `receiver` varchar(20) DEFAULT NULL,
   `message` varchar(500) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   PRIMARY KEY (`message_id`))
     """
@@ -241,7 +257,7 @@ def close_db():
     pass
 
 
-def insert_db(datetime, sender, receiver, content):
+def insert_db(datetime, sender, content):
     pass
 
 
