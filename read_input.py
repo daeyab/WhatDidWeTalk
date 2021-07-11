@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import pymysql
+from datetime import datetime
 
 DATABASE_NAME = "testdb"
 HOST_NAME = "localhost"
@@ -77,31 +78,46 @@ def read_file():
     create_idx_table(conn)
     for txt_file in txt_files:
         with open(txt_file) as lines:
-            is_message_appending = False
-            appending_msg = ""
+            has_read_message = False
+            tn, t, s, m = "", "", "", ""
             for line in lines:
                 if is_msg_format(line):
-                    if is_message_appending:
-                        pass
-                    # if not is_msg_appending :
-                    else:
-                        print("MESSGAE FORMAT")
-                        print(line)
-                        tn, t, s, m = get_tablename_time_sender_message(line)
-                        is_message_appending = True
-                        # t, s, r, m = get_time_sender_reciver_message()
-                        # is_msg_appending = False
-                        # # 1. 일단 읽어
-                        # # 2. 다음 꺼(공백이면 패스)가 똑같이 메세지 포맷이거나 날짜 포맷이면 읽은 것들 삽입
-                        # # 3. 다음 꺼(공백이면 패스)가 메세지 포맷이 아니거나 읽은 메세지에서 어펜드한다
-                        # print("aaaaaa")
-                        # print(line)
+                    if has_read_message:
+                        # print("--HEAD")
+                        insert_into_monthly_chat_table(conn, tn, t, s, m)
+
+                        has_read_message = False
+                    # else:
+                    # 처음 읽는 것이라면 우선 저장부터 하세요
+                    has_read_message = True
+                    # print("MESSGAE FORMAT")
+                    print(line)
+                    tn, t, s, m = get_tablename_time_sender_message(line)
+                    # t, s, r, m = get_time_sender_reciver_message()
+                    # is_msg_appending = False
+                    # # 1. 일단 읽어
+                    # # 2. 다음 꺼(공백이면 패스)가 똑같이 메세지 포맷이거나 날짜 포맷이면 읽은 것들 삽입
+                    # # 3. 다음 꺼(공백이면 패스)가 메세지 포맷이 아니거나 읽은 메세지에서 어펜드한다
+                    # print("aaaaaa")
+                    # print(line)
                 elif is_date_format(line):
+                    if has_read_message:
+                        insert_into_monthly_chat_table(conn, tn, t, s, m)
+                        has_read_message = False
                     y, m = get_year_month(line)
                     create_monthly_chat_table(conn, y, m)
                 else:
-                    pass
+                    if len(line) > 0 or str(len) != os.linesep:
+                        # new_message = str(line)
+                        print("EXTENDED!!!" + str(line) + str(len(line)))
+                        m += " " + str(line.strip("\n"))
+            insert_into_monthly_chat_table(conn, tn, t, s, m)
 
+            # print(m)
+            # 마지막일 때만 출력하면 됨
+
+            # else:
+            #     insert_into_monthly_chat_table(conn, tn, t, s, m)
         # TODO 전처리 해서 이 부분이 정당한 텍스트인지 확인 해야함
         # 해당 경우 아니면 넘어가버려
         # 1. 요일, 월 일, 년도 (e.g., Saturday, January 11, 2020)
@@ -140,13 +156,18 @@ def get_tablename_time_sender_message(line):
     year_time = tokens[1].split()
     hour_minute = year_time[1].split(":")
     sender_message = [token.strip() for token in tokens[2].split(":")]
+    date_time_str = "%s-%s-%s %s:%s:00" % (
+        year_time[0],
+        months_short.get(month_day[0]),
+        month_day[1],
+        hour_minute[0],
+        hour_minute[1],
+    )
+    date_time = datetime.strptime(date_time_str, "%Y-%m-%d %H:%M:%S")
     return (
-        year_time[0] + month_day[0],
-        (
-            "%s-%s-%s %s:%s:00"
-            % (year_time[0], month_day[0], month_day[1], hour_minute[0], hour_minute[1])
-        ),
-        USER_DICT(sender_message[0]),
+        year_time[0] + months_short.get(month_day[0]) + "chats",
+        date_time,
+        USER_DICT.get(sender_message[0]),
         sender_message[1],
     )
 
@@ -215,9 +236,9 @@ def create_and_connect_db(conn, dbname):
 
 def create_idx_table(conn):
     sql = """CREATE TABLE IF NOT EXISTS indexes (
-        table_name MEDIUMINT PRIMARY KEY,
-        year SMALLINT,
-        month TINYINT
+        year SMALLINT NOT NULL,
+        month TINYINT NOT NULL,
+        PRIMARY KEY(year,month)
     )
     """
     conn.cursor().execute(sql)
@@ -225,14 +246,13 @@ def create_idx_table(conn):
 
 
 def create_monthly_chat_table(conn, year, month):
-    table_name = year + month + ""
+    table_name = year + month + "chats"
     sql = (
         """CREATE TABLE IF NOT EXISTS `%s` (
-  `message_id` int NOT NULL AUTO_INCREMENT,
-  `date` datetime DEFAULT NULL,
-  `sender` varchar(20) DEFAULT NULL,
-  `message` varchar(500) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
-  PRIMARY KEY (`message_id`))
+  `date` datetime NOT NULL,
+  `sender` varchar(20) NOT NULL,
+  `message` varchar(500) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  PRIMARY KEY (`date`,`sender`,`message`))
     """
         % table_name
     )
@@ -242,8 +262,7 @@ def create_monthly_chat_table(conn, year, month):
 
 
 def insert_into_index_table(conn, year, month):
-    sql = "INSERT IGNORE INTO indexes(table_name, year, month) VALUES (%s, %s, %s);" % (
-        year + month,
+    sql = "INSERT IGNORE INTO indexes(year, month) VALUES (%s, %s);" % (
         year,
         month,
     )
@@ -252,12 +271,14 @@ def insert_into_index_table(conn, year, month):
 
 
 def insert_into_monthly_chat_table(conn, table_name, datetime, sender, message):
-    sql = "INSERT IGNORE INTO %s(date, sender, message) VALUES (%s, %s, %s);" % (
+    message = message.strip()
+    sql = "INSERT IGNORE INTO %s(date, sender, message) VALUES ('%s', '%s', '%s');" % (
         table_name,
         datetime,
         sender,
         message,
     )
+    print(sql)
     conn.cursor().execute(sql)
     conn.commit()
 
