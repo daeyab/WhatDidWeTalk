@@ -1,9 +1,10 @@
 import os
 from pathlib import Path
 import pymysql
+import re
 from datetime import datetime
 
-DATABASE_NAME = "chatdb"
+DATABASE_NAME = "chatings"
 HOST_NAME = "localhost"
 USER_ID = "root"
 USER_PASSWORD = "rootPW1!"
@@ -68,7 +69,12 @@ def read_file():
     conn = get_connection()
     create_and_connect_db(conn, DATABASE_NAME)
     create_idx_table(conn)
+
+    total = getFileCounts(getFilePath())
+    current = 0
+    # print(file_count)
     for txt_file in txt_files:
+        current += 1
         print(".......................")
         print("Reading file:" + str(txt_file) + "------>", end="")
 
@@ -76,10 +82,11 @@ def read_file():
             has_read_message = False
             tn, t, s, m = "", "", "", ""
             for line in lines:
+                # print(line)
                 if is_msg_format(line):
-                    y, m = get_year_month_by_msg(line)
+                    year, month = get_year_month_by_msg(line)
                     # if new year, month -> create new table
-                    create_monthly_chat_table(conn, y, m)
+                    create_monthly_chat_table(conn, year, month)
                     # already read a message format and met a new message -> insert
                     if has_read_message:
                         insert_into_monthly_chat_table(conn, tn, t, s, m)
@@ -87,9 +94,9 @@ def read_file():
                     has_read_message = True
                     tn, t, s, m = get_tablename_time_sender_message(line)
                 elif is_date_format(line):
-                    y, m = get_year_month_by_date(line)
+                    year, month = get_year_month_by_date(line)
                     # if new year, month -> create new table
-                    create_monthly_chat_table(conn, y, m)
+                    create_monthly_chat_table(conn, year, month)
                     # already read a message and met a new date format -> insert
                     if has_read_message:
                         insert_into_monthly_chat_table(conn, tn, t, s, m)
@@ -100,7 +107,7 @@ def read_file():
                         m += " " + str(line.strip("\n"))
             # isert last message when file ends
             insert_into_monthly_chat_table(conn, tn, t, s, m)
-        print("Done!")
+        print("Done!(%d/%d)" % (current, total))
     print(".......................")
     print("All files inserted!")
 
@@ -227,6 +234,11 @@ def getFilePath():
     return txt_dir
 
 
+def getFileCounts(path):
+    dirListing = os.listdir(path)
+    return len(dirListing)
+
+
 def create_and_connect_db(conn, dbname):
     sql = "CREATE DATABASE IF NOT EXISTS " + dbname + ";"
     conn.cursor().execute(sql)
@@ -272,8 +284,10 @@ def insert_into_index_table(conn, year, month):
 
 
 def insert_into_monthly_chat_table(conn, table_name, datetime, sender, message):
-    message = message.strip()
-    message = message.replace("'", "")
+    # message = message.strip()
+    # print(message, end=" ")
+    message = clean_text(message)
+
     sql = "INSERT IGNORE INTO %s(date, sender, message) VALUES ('%s', '%s', '%s');" % (
         table_name,
         datetime,
@@ -282,6 +296,13 @@ def insert_into_monthly_chat_table(conn, table_name, datetime, sender, message):
     )
     conn.cursor().execute(sql)
     conn.commit()
+
+
+def clean_text(str):
+    res = re.sub("[-=+,#/\?:^$.@*\"※~&%ㆍ!』\‘|\(\)\[\]\<\>`'…》]", "", str).replace(
+        "\\", ""
+    )
+    return res
 
 
 def close_db():
