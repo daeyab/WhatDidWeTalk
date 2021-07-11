@@ -110,6 +110,7 @@ def read_file():
         print("Done!(%d/%d)" % (current, total))
     print(".......................")
     print("All files inserted!")
+    close_db(conn)
 
 
 # check if line is a message format
@@ -305,15 +306,10 @@ def clean_text(str):
     return res
 
 
-def close_db():
-    pass
-
-
-def insert_db(datetime, sender, content):
-    pass
+def close_db(conn):
+    conn.cursor().close()
 
 
 if __name__ == "__main__":
     read_file()
     print("Program ends!")
-    pass
