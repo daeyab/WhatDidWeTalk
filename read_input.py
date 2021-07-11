@@ -8,7 +8,7 @@ HOST_NAME = "localhost"
 USER_ID = "root"
 USER_PASSWORD = "rootPW1!"
 CHARSET = "utf8"
-TXT_FOLDER_PATH = "test"
+TXT_FOLDER_PATH = "chats"
 MIN_DATE = 1
 MAX_DATE = 31
 MIN_HOUR = 0
@@ -69,11 +69,17 @@ def read_file():
     create_and_connect_db(conn, DATABASE_NAME)
     create_idx_table(conn)
     for txt_file in txt_files:
+        print(".......................")
+        print("Reading file:" + str(txt_file) + "------>", end="")
+
         with open(txt_file) as lines:
             has_read_message = False
             tn, t, s, m = "", "", "", ""
             for line in lines:
                 if is_msg_format(line):
+                    y, m = get_year_month_by_msg(line)
+                    # if new year, month -> create new table
+                    create_monthly_chat_table(conn, y, m)
                     # already read a message format and met a new message -> insert
                     if has_read_message:
                         insert_into_monthly_chat_table(conn, tn, t, s, m)
@@ -81,19 +87,22 @@ def read_file():
                     has_read_message = True
                     tn, t, s, m = get_tablename_time_sender_message(line)
                 elif is_date_format(line):
+                    y, m = get_year_month_by_date(line)
+                    # if new year, month -> create new table
+                    create_monthly_chat_table(conn, y, m)
                     # already read a message and met a new date format -> insert
                     if has_read_message:
                         insert_into_monthly_chat_table(conn, tn, t, s, m)
                         has_read_message = False
-                    y, m = get_year_month(line)
-                    # if new year, month -> create new table
-                    create_monthly_chat_table(conn, y, m)
                 # for appending messages, file end, hangle empty space
                 else:
                     if len(line) > 0:
                         m += " " + str(line.strip("\n"))
             # isert last message when file ends
             insert_into_monthly_chat_table(conn, tn, t, s, m)
+        print("Done!")
+    print(".......................")
+    print("All files inserted!")
 
 
 # check if line is a message format
@@ -165,8 +174,16 @@ def is_minute(str):
         return False
 
 
-# get year and month string from the line
-def get_year_month(line):
+# get year and month string from msg line
+def get_year_month_by_msg(line):
+    tokens = [token.strip(",") for token in line.split(",", 2)]
+    month_day = tokens[0].split()
+    year_time = tokens[1].split()
+    return year_time[0], months_short.get(month_day[0])
+
+
+# get year and month string from date line
+def get_year_month_by_date(line):
     tokens = [token.strip(",") for token in line.split(" ")]
     return tokens[3].strip("\n"), months[tokens[1]]
 
@@ -256,13 +273,13 @@ def insert_into_index_table(conn, year, month):
 
 def insert_into_monthly_chat_table(conn, table_name, datetime, sender, message):
     message = message.strip()
+    message = message.replace("'", "")
     sql = "INSERT IGNORE INTO %s(date, sender, message) VALUES ('%s', '%s', '%s');" % (
         table_name,
         datetime,
         sender,
         message,
     )
-    print(sql)
     conn.cursor().execute(sql)
     conn.commit()
 
@@ -277,4 +294,5 @@ def insert_db(datetime, sender, content):
 
 if __name__ == "__main__":
     read_file()
+    print("Program ends!")
     pass
